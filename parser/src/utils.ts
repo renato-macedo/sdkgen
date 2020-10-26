@@ -44,3 +44,7 @@ primitiveToAstClass.set("base64", Base64PrimitiveType);
 primitiveToAstClass.set("xml", XmlPrimitiveType);
 primitiveToAstClass.set("json", JsonPrimitiveType);
 primitiveToAstClass.set("void", VoidPrimitiveType);
+
+export function startsWithLowerCase(str: string): boolean {
+  return /^[a-z]/u.test(str);
+}

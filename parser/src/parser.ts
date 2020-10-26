@@ -11,6 +11,7 @@ import {
   EnumValue,
   Field,
   FunctionOperation,
+  GenericType,
   GetOperation,
   HiddenAnnotation,
   Operation,
@@ -38,8 +39,10 @@ import {
   FalseKeywordToken,
   FunctionKeywordToken,
   GetKeywordToken,
+  GreaterThanSymbolToken,
   IdentifierToken,
   ImportKeywordToken,
+  LessThanSymbolToken,
   OptionalSymbolToken,
   ParensCloseSymbolToken,
   ParensOpenSymbolToken,
@@ -50,7 +53,7 @@ import {
   TrueKeywordToken,
   TypeKeywordToken,
 } from "./token";
-import { primitiveToAstClass } from "./utils";
+import { primitiveToAstClass, startsWithLowerCase } from "./utils";
 
 export class ParserError extends Error {}
 
@@ -70,6 +73,7 @@ interface MultiExpectMatcher {
   SpreadSymbolToken?: (token: SpreadSymbolToken) => any;
   TrueKeywordToken?: (token: TrueKeywordToken) => any;
   FalseKeywordToken?: (token: FalseKeywordToken) => any;
+  LessThanSymbolToken?: (token: LessThanSymbolToken) => any;
 }
 
 export class Parser {
@@ -260,12 +264,18 @@ export class Parser {
 
     this.nextToken();
 
+    let typeArguments: GenericType[] = [];
+
+    if (this.token instanceof LessThanSymbolToken) {
+      typeArguments = this.parseTypeArgs();
+    }
+
     const { annotations } = this;
 
     this.annotations = [];
 
     const type = this.parseType();
-    const definitions = new TypeDefinition(name, type).at(typeToken);
+    const definitions = new TypeDefinition(name, type, typeArguments).at(typeToken);
 
     definitions.annotations = annotations;
 
@@ -449,12 +459,19 @@ export class Parser {
           this.nextToken();
           const identToken = this.expect(IdentifierToken);
 
-          this.nextToken();
           if (!identToken.value[0].match(/[A-Z]/u)) {
             throw new ParserError(`Expected a type but found '${JSON.stringify(identToken.value)}' at ${identToken.location}`);
           }
 
-          spreads.push(new TypeReference(identToken.value).at(identToken));
+          this.nextToken();
+
+          let typeArgs: GenericType[] = [];
+
+          if (this.token instanceof LessThanSymbolToken) {
+            typeArgs = this.parseTypeArgs();
+          }
+
+          spreads.push(new TypeReference(identToken.value, typeArgs).at(identToken));
         },
       });
     }
@@ -467,13 +484,20 @@ export class Parser {
     let result = this.multiExpect({
       CurlyOpenSymbolToken: () => this.parseStruct(),
       EnumKeywordToken: () => this.parseEnum(),
-      IdentifierToken: token => {
-        this.nextToken();
-        if (!token.value[0].match(/[A-Z]/u)) {
-          throw new ParserError(`Expected a type but found '${JSON.stringify(token.value)}' at ${token.location}`);
+      IdentifierToken: identToken => {
+        if (startsWithLowerCase(identToken.value)) {
+          throw new ParserError(`Expected a type but found '${JSON.stringify(identToken.value)}' at ${identToken.location}`);
         }
 
-        return new TypeReference(token.value).at(token);
+        this.nextToken();
+
+        let typeArgs: GenericType[] = [];
+
+        if (this.token instanceof LessThanSymbolToken) {
+          typeArgs = this.parseTypeArgs();
+        }
+
+        return new TypeReference(identToken.value, typeArgs).at(identToken);
       },
       PrimitiveTypeToken: token => {
         this.nextToken();
@@ -496,5 +520,36 @@ export class Parser {
     }
 
     return result;
+  }
+
+  private parseTypeArgs() {
+    this.expect(LessThanSymbolToken);
+
+    this.nextToken();
+    const args = new Map<string, GenericType>();
+
+    do {
+      const argToken = this.expect(IdentifierToken);
+
+      if (args.has(argToken.value)) {
+        throw new ParserError(`Cannot redeclare type argument '${argToken.value}'`);
+      }
+
+      if (startsWithLowerCase(argToken.value)) {
+        throw new ParserError(
+          `Type arguments must start with an uppercase letter, but found '${JSON.stringify(argToken.value)}' at ${argToken.location}`,
+        );
+      }
+
+      args.set(argToken.value, new GenericType(argToken.value).at(argToken));
+
+      this.nextToken();
+    } while (this.token instanceof CommaSymbolToken);
+
+    this.expect(GreaterThanSymbolToken);
+
+    this.nextToken();
+
+    return Array.from(args.values());
   }
 }

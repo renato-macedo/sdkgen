@@ -148,22 +148,26 @@ export class StructType extends Type {
   }
 }
 
-export class TypeDefinition extends AstNode {
-  annotations: Annotation[] = [];
-
-  constructor(public name: string, public type: Type) {
-    super();
-  }
-}
-
-export class TypeReference extends Type {
-  type!: Type;
-
+export class GenericType extends Type {
   constructor(public name: string) {
     super();
   }
 }
 
+export class TypeDefinition extends AstNode {
+  annotations: Annotation[] = [];
+
+  constructor(public name: string, public type: Type, public typeArgs: GenericType[] = []) {
+    super();
+  }
+}
+export class TypeReference extends Type {
+  type!: Type;
+
+  constructor(public name: string, public typeArgs: GenericType[] = []) {
+    super();
+  }
+}
 export class Field extends AstNode {
   annotations: Annotation[] = [];
 
