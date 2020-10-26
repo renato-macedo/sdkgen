@@ -12,8 +12,10 @@ import {
   FalseKeywordToken,
   FunctionKeywordToken,
   GetKeywordToken,
+  GreaterThanSymbolToken,
   IdentifierToken,
   ImportKeywordToken,
+  LessThanSymbolToken,
   OptionalSymbolToken,
   ParensCloseSymbolToken,
   ParensOpenSymbolToken,
@@ -206,6 +208,14 @@ export class Lexer {
             break;
         }
 
+        break;
+      case "<":
+        this.nextChar();
+        token = new LessThanSymbolToken();
+        break;
+      case ">":
+        this.nextChar();
+        token = new GreaterThanSymbolToken();
         break;
       case ".":
         switch (this.nextChar()) {

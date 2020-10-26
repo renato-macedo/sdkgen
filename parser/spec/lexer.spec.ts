@@ -12,8 +12,10 @@ import {
   ExclamationMarkSymbolToken,
   FunctionKeywordToken,
   GetKeywordToken,
+  GreaterThanSymbolToken,
   IdentifierToken,
   ImportKeywordToken,
+  LessThanSymbolToken,
   OptionalSymbolToken,
   ParensCloseSymbolToken,
   ParensOpenSymbolToken,
@@ -130,6 +132,10 @@ describe(Lexer, () => {
     new CurlyCloseSymbolToken(),
     new ParensCloseSymbolToken(),
   ]);
+
+  itLexes("<", [new LessThanSymbolToken()]);
+  itLexes(">", [new GreaterThanSymbolToken()]);
+  itLexes("<>", [new LessThanSymbolToken(), new GreaterThanSymbolToken()]);
 
   itLexes(" [][] ", [new ArraySymbolToken(), new ArraySymbolToken()]);
 
