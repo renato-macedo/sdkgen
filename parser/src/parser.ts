@@ -12,6 +12,8 @@ import {
   Field,
   FunctionOperation,
   GenericType,
+  GenericTypeDefinition,
+  GenericTypeReference,
   GetOperation,
   HiddenAnnotation,
   Operation,
@@ -275,7 +277,13 @@ export class Parser {
     this.annotations = [];
 
     const type = this.parseType();
-    const definitions = new TypeDefinition(name, type, typeArguments).at(typeToken);
+    let definitions: TypeDefinition;
+
+    if (typeArguments.length) {
+      definitions = new GenericTypeDefinition(name, type, typeArguments).at(typeToken);
+    } else {
+      definitions = new TypeDefinition(name, type).at(typeToken);
+    }
 
     definitions.annotations = annotations;
 
@@ -471,7 +479,15 @@ export class Parser {
             typeArgs = this.parseTypeArgs();
           }
 
-          spreads.push(new TypeReference(identToken.value, typeArgs).at(identToken));
+          let typeReference: TypeReference;
+
+          if (typeArgs.length) {
+            typeReference = new GenericTypeReference(identToken.value, typeArgs).at(identToken);
+          } else {
+            typeReference = new TypeReference(identToken.value).at(identToken);
+          }
+
+          spreads.push(typeReference);
         },
       });
     }
@@ -481,7 +497,7 @@ export class Parser {
 
   private parseType(): Type {
     this.checkCannotHaveAnnotationsHere();
-    let result = this.multiExpect({
+    let result: Type = this.multiExpect({
       CurlyOpenSymbolToken: () => this.parseStruct(),
       EnumKeywordToken: () => this.parseEnum(),
       IdentifierToken: identToken => {
@@ -497,7 +513,11 @@ export class Parser {
           typeArgs = this.parseTypeArgs();
         }
 
-        return new TypeReference(identToken.value, typeArgs).at(identToken);
+        if (typeArgs.length) {
+          return new GenericTypeReference(identToken.value, typeArgs).at(identToken);
+        }
+
+        return new TypeReference(identToken.value).at(identToken);
       },
       PrimitiveTypeToken: token => {
         this.nextToken();
@@ -525,10 +545,10 @@ export class Parser {
   private parseTypeArgs() {
     this.expect(LessThanSymbolToken);
 
-    this.nextToken();
     const args = new Map<string, GenericType>();
 
     do {
+      this.nextToken();
       const argToken = this.expect(IdentifierToken);
 
       if (args.has(argToken.value)) {

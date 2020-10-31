@@ -149,23 +149,43 @@ export class StructType extends Type {
 }
 
 export class GenericType extends Type {
+  value: string;
+
   constructor(public name: string) {
     super();
+    this.value = name;
+  }
+
+  toJSON(): string {
+    return this.value;
   }
 }
 
 export class TypeDefinition extends AstNode {
   annotations: Annotation[] = [];
 
-  constructor(public name: string, public type: Type, public typeArgs: GenericType[] = []) {
+  constructor(public name: string, public type: Type) {
     super();
   }
 }
+
+export class GenericTypeDefinition extends TypeDefinition {
+  constructor(public name: string, public type: Type, public typeArgs: GenericType[]) {
+    super(name, type);
+  }
+}
+
 export class TypeReference extends Type {
   type!: Type;
 
-  constructor(public name: string, public typeArgs: GenericType[] = []) {
+  constructor(public name: string) {
     super();
+  }
+}
+
+export class GenericTypeReference extends TypeReference {
+  constructor(public name: string, public typeArgs: GenericType[] = []) {
+    super(name);
   }
 }
 export class Field extends AstNode {
