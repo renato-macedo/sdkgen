@@ -482,9 +482,12 @@ export class Parser {
           let typeReference: TypeReference;
 
           if (typeArgs.length) {
-            typeReference = new GenericTypeReference(identToken.value, typeArgs).at(identToken);
+            typeReference = new GenericTypeReference(
+              identToken.value,
+              typeArgs.map(t => new TypeReference(t.name)),
+            ).atLocation(identToken.location);
           } else {
-            typeReference = new TypeReference(identToken.value).at(identToken);
+            typeReference = new TypeReference(identToken.value).atLocation(identToken.location);
           }
 
           spreads.push(typeReference);
@@ -514,7 +517,10 @@ export class Parser {
         }
 
         if (typeArgs.length) {
-          return new GenericTypeReference(identToken.value, typeArgs).at(identToken);
+          return new GenericTypeReference(
+            identToken.value,
+            typeArgs.map(t => new TypeReference(t.name)),
+          ).atLocation(identToken.location);
         }
 
         return new TypeReference(identToken.value).at(identToken);
@@ -555,11 +561,12 @@ export class Parser {
         throw new ParserError(`Cannot redeclare type argument '${argToken.value}'`);
       }
 
-      if (startsWithLowerCase(argToken.value)) {
+      /*       if (startsWithLowerCase(argToken.value)) {
+
         throw new ParserError(
           `Type arguments must start with an uppercase letter, but found '${JSON.stringify(argToken.value)}' at ${argToken.location}`,
         );
-      }
+      } */
 
       args.set(argToken.value, new GenericType(argToken.value).at(argToken));
 

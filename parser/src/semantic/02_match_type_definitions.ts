@@ -6,9 +6,9 @@ export class MatchTypeDefinitionsVisitor extends Visitor {
   visit(node: AstNode, typeDefinitions: TypeDefinition[]): void {
     if (node instanceof GenericTypeDefinition) {
       const argTypeDef = node.typeArgs.map(arg => new TypeDefinition(arg.name, new GenericType(arg.name)));
-      const nodeTypeDefs = [...typeDefinitions, ...argTypeDef];
+      typeDefinitions = [...typeDefinitions, ...argTypeDef];
 
-      super.visit(node.type, nodeTypeDefs);
+      super.visit(node.type, typeDefinitions);
       return;
     }
 

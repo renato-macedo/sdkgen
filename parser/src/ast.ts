@@ -184,7 +184,7 @@ export class TypeReference extends Type {
 }
 
 export class GenericTypeReference extends TypeReference {
-  constructor(public name: string, public typeArgs: GenericType[] = []) {
+  constructor(public name: string, public typeArgs: TypeReference[] = []) {
     super(name);
   }
 }
