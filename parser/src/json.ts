@@ -6,6 +6,8 @@ import {
   EnumValue,
   Field,
   FunctionOperation,
+  GenericTypeDefinition,
+  GenericTypeReference,
   HiddenAnnotation,
   Operation,
   OptionalType,
@@ -19,8 +21,22 @@ import {
 import { analyse } from "./semantic/analyser";
 import { primitiveToAstClass } from "./utils";
 
+interface StructTypes {
+  [t: string]: {
+    fields: {
+      [name: string]: TypeDescription;
+    };
+
+    typeArgs: string[];
+  };
+}
+
+interface EnumTypes {
+  [t: string]: string[];
+}
 interface TypeTable {
-  [name: string]: TypeDescription;
+  structTypes: StructTypes;
+  enumTypes: EnumTypes;
 }
 
 interface FunctionTable {
@@ -40,7 +56,7 @@ interface AnnotationJson {
 }
 
 export interface AstJson {
-  typeTable: TypeTable;
+  typeTable: any;
   functionTable: FunctionTable;
   errors: string[];
   annotations: { [target: string]: AnnotationJson[] };
@@ -48,11 +64,18 @@ export interface AstJson {
 
 export function astToJson(ast: AstRoot): AstJson {
   const annotations: { [target: string]: AnnotationJson[] } = {};
-  const typeTable: TypeTable = {};
+  const enumTypes: EnumTypes = {};
+  const structTypes: StructTypes = {};
 
   for (const { name, fields } of ast.structTypes) {
-    typeTable[name] = {};
-    const obj: any = typeTable[name];
+    const genericTypeDef = ast.typeDefinitions.find(typedef => typedef.name === name);
+
+    structTypes[name] = {
+      fields: {},
+      typeArgs: genericTypeDef instanceof GenericTypeDefinition ? genericTypeDef.typeArgs.map(t => t.name) : [],
+    };
+
+    const obj = structTypes[name].fields;
 
     for (const field of fields) {
       obj[field.name] = field.type.name;
@@ -71,8 +94,10 @@ export function astToJson(ast: AstRoot): AstJson {
   }
 
   for (const { name, values } of ast.enumTypes) {
-    typeTable[name] = values.map(v => v.value);
+    enumTypes[name] = values.map(v => v.value);
   }
+
+  const typeTable: TypeTable = { enumTypes, structTypes };
 
   const functionTable: FunctionTable = {};
 
@@ -95,7 +120,10 @@ export function astToJson(ast: AstRoot): AstJson {
 
     functionTable[op.prettyName] = {
       args,
-      ret: op.returnType.name,
+      ret: {
+        type: op.returnType.name,
+        typeArgs: op.returnType instanceof GenericTypeReference ? op.returnType.typeArgs.map(t => t.name) : [],
+      },
     };
 
     for (const ann of op.annotations) {
@@ -147,6 +175,10 @@ export function jsonToAst(json: AstJson): AstRoot {
   const typeDefinition: TypeDefinition[] = [];
   const errors: string[] = json.errors || [];
 
+  function processEnumTypes(description: string[]) {
+    return new EnumType(description.map(v => new EnumValue(v)));
+  }
+
   function processType(description: TypeDescription, typeName?: string): Type {
     if (typeof description === "string") {
       const primitiveClass = primitiveToAstClass.get(description);
@@ -159,9 +191,10 @@ export function jsonToAst(json: AstJson): AstRoot {
         return new ArrayType(processType(description.slice(0, description.length - 2)));
       }
 
+      // Maybe generic type reference ?
       return new TypeReference(description);
     } else if (Array.isArray(description)) {
-      return new EnumType(description.map(v => new EnumValue(v)));
+      return processEnumTypes(description);
     }
 
     const fields: Field[] = [];
@@ -185,10 +218,18 @@ export function jsonToAst(json: AstJson): AstRoot {
     return new StructType(fields, []);
   }
 
-  for (const [typeName, description] of Object.entries(json.typeTable)) {
-    const type = processType(description, typeName);
+  const { enumTypes, structTypes } = json.typeTable;
 
-    if (typeName === "ErrorType" && type instanceof EnumType) {
+  for (const [typeName, description] of Object.entries(structTypes)) {
+    const type = processType((description as any).fields as TypeDescription, typeName);
+
+    typeDefinition.push(new TypeDefinition(typeName, type));
+  }
+
+  for (const [typeName, description] of Object.entries(enumTypes)) {
+    const type = processEnumTypes(description as string[]);
+
+    if (typeName === "ErrorType") {
       errors.push(...type.values.map(v => v.value));
       continue;
     }

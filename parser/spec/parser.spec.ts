@@ -92,6 +92,78 @@ describe(Parser, () => {
     });
   }
 
+  /*      type User {
+        id: uuid
+        name: string
+        email: string
+      } 
+      
+            type Box<T, Y> {
+        size: T
+        items: Y[]
+      }*/
+  test.only("handles generics", () => {
+    expectParses(
+      `
+      type Page<T> {
+        pageNumber: uint
+        currentPage: T[]
+        totalCount: uint
+      }
+
+      type Box<T, Y> {
+        size: T
+        items: Y[]
+      }
+      
+      fn getUsers(page: uint): Page<string>
+      `,
+      {
+        annotations: {},
+        errors: ["Fatal"],
+        functionTable: {
+          getUsers: {
+            args: {
+              page: "uint",
+            },
+            ret: {
+              type: "Page",
+              typeArgs: ["string"],
+            },
+          },
+        },
+        typeTable: {
+          enumTypes: {},
+          structTypes: {
+            Box: {
+              fields: {
+                items: "Y[]",
+                size: "T",
+              },
+              typeArgs: ["T", "Y"],
+            },
+            Page: {
+              fields: {
+                currentPage: "T[]",
+                pageNumber: "uint",
+                totalCount: "uint",
+              },
+              typeArgs: ["T"],
+            },
+            // User: {
+            //   fields: {
+            //     email: "string",
+            //     id: "uuid",
+            //     name: "string",
+            //   },
+            //   typeArgs: [],
+            // },
+          },
+        },
+      },
+    );
+  });
+
   test("handles arrays and optionals", () => {
     expectParses(
       `

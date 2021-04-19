@@ -5,10 +5,12 @@ export abstract class Visitor {
 
   process(): void {
     for (const typeDefinition of this.root.typeDefinitions) {
+      console.log("---- Definition ----");
       this.visit(typeDefinition, this.root.typeDefinitions);
     }
 
     for (const operation of this.root.operations) {
+      console.log("---- Operation ----");
       this.visit(operation, this.root.typeDefinitions);
     }
   }
